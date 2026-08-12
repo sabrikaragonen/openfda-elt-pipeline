@@ -10,7 +10,9 @@ logs/queries
 warehouse.db
 warehouse.db.wal
 
-.bruin.yml
 logs/runs
 logs/*.log
 *.py[cod]
+.venv/
+
+.bruin.yml

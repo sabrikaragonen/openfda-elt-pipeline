@@ -1,20 +1,25 @@
 # openFDA adverse drug events, in Bruin
 
-A port of [peterscheinsohn/openfda-elt-pipeline](https://github.com/peterscheinsohn/openfda-elt-pipeline)
-from dlt + dbt to [Bruin](https://github.com/bruin-data/bruin). The original is
-an educational project and says so; it stops at three staging views over a
-five-row sample. Its README lists what it would do next:
+## Purpose
+
+**This exists to show how to rewrite a dlt + dbt project in [Bruin](https://github.com/bruin-data/bruin).**
+
+It is a port, not a benchmark and not a criticism. The original,
+[peterscheinsohn/openfda-elt-pipeline](https://github.com/peterscheinsohn/openfda-elt-pipeline),
+is an educational project and says so. Its README ends with a list of what it
+would do next:
 
 > incremental loading; analytical dbt marts; dashboard; orchestration with
 > Airflow; historical tracking of updated reports.
 
-This version does the first, second and fifth of those, and Bruin covers the
-fourth on its own. The original code is untouched and still sits in
-[`../pipeline_dlt_rest.py`](../pipeline_dlt_rest.py) and
-[`../openfda_dbt/`](../openfda_dbt) if you want to compare.
+So the port works through that list, which makes it a useful demonstration:
+you get to see what each of those looks like in Bruin, on a real source, rather
+than on a five-row sample. The original dlt and dbt code is untouched and still
+sits in [`../pipeline_dlt_rest.py`](../pipeline_dlt_rest.py) and
+[`../openfda_dbt/`](../openfda_dbt) so you can read them side by side.
 
-Everything below was run against the live API, and every number is from the
-run in [`run.log`](./run.log).
+Every number below comes from [`run.log`](./run.log), one clean run against the
+live API.
 
 ## Run it
 
@@ -23,22 +28,94 @@ curl -LsSf https://getbruin.com/install.sh | sh   # if you do not have it
 bruin run . --start-date 2024-02-28 --end-date 2024-03-04
 ```
 
-That is the whole setup. No profiles file, no virtualenv, no `pip install`, no
-separate `dbt build` step. Bruin resolves the Python dependencies with `uv`,
-runs the ingestion, materialises the SQL models in dependency order and runs
-every quality check. The DuckDB connection is committed in
-[`../.bruin.yml`](../.bruin.yml) because a local file path is not a secret;
-real projects keep that file out of git.
+That is the whole setup. **You do not need Python installed.** Bruin is a
+single Go binary that ships its own `uv`, and `uv` fetches the interpreter the
+asset asks for. On the machine that produced `run.log`, the Python on `PATH`
+was 3.14.6, while the ingestion asset declares `image: python:3.13` and ran on
+a standalone CPython 3.13.5 that Bruin downloaded into its own cache. The
+system Python was never touched, and neither was any global site-packages.
+Assets in one pipeline can pin different Python versions without colliding.
+
+There is also no profiles file, no `pip install`, no virtualenv to activate and
+no separate `dbt build` step. The DuckDB connection is committed in
+[`../.bruin.yml`](../.bruin.yml) because a local file path is not a secret; real
+projects keep that file out of git.
 
 Then poke at it:
 
 ```bash
 bruin query -c duckdb-default -q "SELECT * FROM openfda.mart_daily_report_volume ORDER BY 1"
-bruin lineage assets/openfda/mart_drug_reaction_signals.sql
+bruin lineage assets/openfda/mart_drug_reaction_signals.sql --full
 bruin validate .
 ```
 
-## The pipeline
+## Lineage
+
+Bruin builds the DAG from the assets themselves, so lineage is a command rather
+than a diagram somebody has to remember to update:
+
+```
+$ bruin lineage assets/openfda_raw/openfda_drug_events.py --full
+
+Lineage: 'openfda_raw.drug_events'
+
+Upstream Dependencies
+========================
+Asset has no upstream dependencies.
+
+Downstream Dependencies
+========================
+- openfda.stg_reports (assets/openfda/stg_reports.sql)
+- openfda.mart_daily_report_volume (assets/openfda/mart_daily_report_volume.sql)
+- openfda.mart_drug_reaction_signals (assets/openfda/mart_drug_reaction_signals.sql)
+- openfda.stg_drugs (assets/openfda/stg_drugs.sql)
+- openfda.stg_reactions (assets/openfda/stg_reactions.sql)
+
+Total: 5
+```
+
+```
+$ bruin lineage assets/openfda/mart_drug_reaction_signals.sql --full
+
+Lineage: 'openfda.mart_drug_reaction_signals'
+
+Upstream Dependencies
+========================
+- openfda.stg_reports (assets/openfda/stg_reports.sql)
+- openfda_raw.drug_events (assets/openfda_raw/openfda_drug_events.py)
+- openfda.stg_reactions (assets/openfda/stg_reactions.sql)
+- openfda.stg_drugs (assets/openfda/stg_drugs.sql)
+
+Total: 4
+
+Downstream Dependencies
+========================
+Asset has no downstream dependencies.
+```
+
+The whole graph, ingestion included:
+
+```
+openfda_raw.drug_events                       Python, delete+insert on receivedate
+│
+└── openfda.stg_reports                       view, decoded and deduped
+    │
+    ├── openfda.stg_reactions                 view, JSON unnest
+    ├── openfda.stg_drugs                     view, JSON unnest
+    │
+    ├── openfda.mart_daily_report_volume      table, create+replace
+    │     └── from stg_reports
+    │
+    └── openfda.mart_drug_reaction_signals    table, create+replace
+          └── from stg_reports + stg_reactions + stg_drugs
+```
+
+The thing to notice is that the ingestion step is *in* the graph. In the
+original, dlt and dbt are separate programs and the dependency between them is
+a DuckDB file plus a README telling you which to run first. Here
+`openfda_raw.drug_events` is a node like any other, so `bruin run .` orders
+everything, and a failure upstream marks the downstream assets
+`UPSTREAM FAILED` instead of quietly letting them run on stale data.
 
 | Asset | Type | Materialisation | Rows |
 |---|---|---|---|
@@ -49,16 +126,39 @@ bruin validate .
 | `openfda.mart_daily_report_volume` | DuckDB SQL | table, `create+replace` | 5 |
 | `openfda.mart_drug_reaction_signals` | DuckDB SQL | table, `create+replace` | 3,483 |
 
-Six assets, 56 quality checks, one command.
+## Size and setup, honestly
 
-```
-openfda_raw.drug_events
-└── openfda.stg_reports
-    ├── openfda.stg_reactions ──┐
-    ├── openfda.stg_drugs ──────┤
-    ├── openfda.mart_daily_report_volume
-    └── openfda.mart_drug_reaction_signals ◄┘
-```
+The port is **nine times more code**. It is not a "look how much less you have
+to write" story, and pretending otherwise would be silly:
+
+| | dlt + dbt original | Bruin port |
+|---|---|---|
+| Source files | 8 | 9 |
+| Total lines | 111 | 1,002 |
+| Lines of SQL logic | 19 | 183 |
+| Lines of config / scaffolding | 34 in repo, plus `~/.dbt/profiles.yml` outside it | 55, all in repo |
+| Quality checks | 8, in 2 sidecar `.yml` files | 56, inline in the asset that owns them |
+| Data rows it can hold | 5, replaced every run | any date range, 15,633 over the 5 days loaded |
+
+Those extra lines are buying pagination, retries, rate limiting, code decoding,
+age normalisation, two marts, a PRR calculation and 48 more tests. Of the 645
+lines across the five SQL assets, only **183 are SQL**. The other 462 are the
+`@bruin` header: descriptions, column types and checks, sitting in the same
+file as the query they describe.
+
+Where the port is genuinely smaller is in the setup:
+
+| | dlt + dbt original | Bruin port |
+|---|---|---|
+| Installed on your machine | Python, then `pip install dlt duckdb dbt-duckdb requests` | one binary |
+| Files to hand-edit before first run | `~/.dbt/profiles.yml`, with an absolute path | none |
+| Commands to a full build | 4 (`pip install`, edit profiles, `python3 pipeline_dlt_rest.py`, `dbt build`) | 1 (`bruin run .`) |
+| Steps that must be run in the right order by hand | 2 | 0 |
+| Config files living outside the repo | 1 | 0 |
+
+None of this means dbt cannot express these models. It can, and the SQL would
+look much the same. The difference is that ingestion, transformation, tests,
+types, lineage, scheduling and backfill are one DAG that one binary runs.
 
 ## What moved where
 
@@ -67,14 +167,9 @@ openfda_raw.drug_events
 | Ingestion | `pipeline_dlt_rest.py`, `limit: 5`, `single_page`, `write_disposition="replace"` | Python asset, paged, one day at a time, `delete+insert` on `receivedate` |
 | Transformation | `openfda_dbt/` with its own `dbt_project.yml` and `~/.dbt/profiles.yml` | SQL assets in the same project, same config file |
 | Nested arrays | dlt child tables joined on `_dlt_id` / `_dlt_parent_id` | JSON kept in the raw layer, unnested in SQL, no vendor columns in the models |
-| Tests | 8 `not_null` / `unique` in `.yml` sidecars | 56 checks inline in the asset that owns them, including 8 custom SQL checks |
+| Tests | 8 `not_null` / `unique` in `.yml` sidecars | 56 checks inline, including 8 custom SQL checks |
 | Scheduling | listed as a future step | `schedule`, `start_date`, `catchup` and `interval_modifiers` in `pipeline.yml` |
-| Commands to run it | `pip install`, edit `profiles.yml`, `python3 pipeline_dlt_rest.py`, `dbt build` | `bruin run .` |
-
-The point is not that dbt cannot express these models. It can. The difference
-is that ingestion, transformation, tests, types, lineage, scheduling and
-backfill live in one DAG that one binary runs, instead of two tools joined by a
-DuckDB file and a README instruction to run them in the right order.
+| Python environment | yours, whatever version it happens to be | declared per asset, fetched by Bruin |
 
 ## Three things the data turned out to need
 
@@ -85,13 +180,13 @@ actually loading the source, and each one is now enforced by a check.
 
 The field is expressed in whichever unit `patientonsetageunit` names: decades,
 years, months, weeks, days or hours. In the loaded window a value of `9` means
-nine years on one row and ninety on another, and a value of `29935` means
-eighty-two years in days.
+nine years on one row and ninety on another, and `29935` means eighty-two years
+in days.
 
 The original model passes the column straight through as `patient_onset_age`.
 Average it and you get **255**. Normalised to years, the same average is
-**56.5**. `openfda.stg_reports` does the conversion and carries a non-blocking
-check on implausible results.
+**56.5**. `openfda.stg_reports` does the conversion and carries a check on
+implausible results.
 
 ### 2. `receivedate` is the first receipt, not the latest
 
