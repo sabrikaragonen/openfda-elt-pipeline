@@ -3,8 +3,9 @@
 An educational ELT pipeline for adverse drug event reports from the openFDA REST API.
 
 > **This is a fork.** The original is
-> [peterscheinsohn/openfda-elt-pipeline](https://github.com/peterscheinsohn/openfda-elt-pipeline)
-> and everything below this note is his, unmodified.
+> [peterscheinsohn/openfda-elt-pipeline](https://github.com/peterscheinsohn/openfda-elt-pipeline).
+> Its dlt and dbt code, and the README text below the divider, are his and are
+> unmodified.
 >
 > The fork adds [`openfda_bruin/`](./openfda_bruin), whose purpose is to show
 > **how to rewrite a dlt + dbt project in [Bruin](https://github.com/bruin-data/bruin)**.
@@ -12,9 +13,32 @@ An educational ELT pipeline for adverse drug event reports from the openFDA REST
 > improvements" listed at the bottom of this file: incremental loading,
 > analytical marts and handling of updated reports.
 >
+> **The Bruin version uses no dlt and no dbt.** Its stack is:
+>
+> - Bruin, one Go binary, which brings its own `uv` and Python interpreter
+> - DuckDB
+> - openFDA REST API
+>
+> ```
+> openFDA REST API
+> → Bruin Python asset      (ingestion, paged and incremental)
+> → DuckDB
+> → Bruin SQL assets        (staging views and marts)
+> → Bruin quality checks    (56 of them)
+> ```
+>
+> That is one DAG, run by `bruin run .`. Nothing to `pip install`, no Python on
+> your machine, no profiles file, no second tool to invoke afterwards.
+>
 > See [`openfda_bruin/README.md`](./openfda_bruin/README.md) for the lineage,
 > a side-by-side on files, lines and setup steps, and the three things the real
 > data turned out to need that a five-row sample could not show.
+
+---
+
+**Everything from here down is the original project's own README, describing the
+dlt + dbt version in [`openfda_dbt/`](./openfda_dbt) and
+[`pipeline_dlt_rest.py`](./pipeline_dlt_rest.py). It is unmodified.**
 
 ## Architecture
 

@@ -21,6 +21,31 @@ sits in [`../pipeline_dlt_rest.py`](../pipeline_dlt_rest.py) and
 Every number below comes from [`run.log`](./run.log), one clean run against the
 live API.
 
+## Tech stack
+
+- **Bruin**, one Go binary. It brings its own `uv` and fetches its own Python
+  interpreter, so nothing else is installed.
+- **DuckDB**, same destination as the original.
+- **openFDA REST API**, same source as the original.
+
+That is the entire list. **No dlt and no dbt**, and no Airflow either: the
+scheduling the original lists as a future step is `schedule` / `start_date` /
+`catchup` in [`pipeline.yml`](./pipeline.yml).
+
+```
+openFDA REST API
+→ Bruin Python asset      openfda_raw.drug_events, paged and incremental
+→ DuckDB
+→ Bruin SQL assets        3 staging views, 2 marts
+→ Bruin quality checks    56, declared on the assets they check
+```
+
+Python still appears, but as an implementation detail of one asset rather than a
+prerequisite. The ingestion asset declares `image: python:3.13` and lists
+`requests` in [`pyproject.toml`](./pyproject.toml); Bruin resolves both. See
+[Run it](#run-it) for what that looked like on a machine whose own Python was a
+different version.
+
 ## Run it
 
 ```bash
