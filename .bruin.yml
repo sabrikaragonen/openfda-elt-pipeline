@@ -1,0 +1,11 @@
+# Committed on purpose: the only connection this project needs is a local
+# DuckDB file, so there is nothing secret in here and `bruin run` works
+# straight after a clone. Real projects keep .bruin.yml out of git and use
+# environment variables or a secrets backend instead.
+default_environment: default
+environments:
+    default:
+        connections:
+            duckdb:
+                - name: duckdb-default
+                  path: warehouse.db

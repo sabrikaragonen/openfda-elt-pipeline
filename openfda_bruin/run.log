@@ -1,0 +1,161 @@
+Analyzed the pipeline 'openfda' with 6 assets.
+
+Pipeline: openfda (.)
+  No issues found
+
+✓ Successfully validated 6 assets across 1 pipeline, all good.
+
+Interval: 2024-02-28T00:00:00Z - 2024-03-04T00:00:00Z
+
+Starting the pipeline execution...
+
+[17:12:35] Running:  openfda_raw.drug_events
+[17:12:35] [openfda_raw.drug_events] >> Resolved 6 packages in 38ms
+[17:12:35] [openfda_raw.drug_events] >> Fetching 5 day(s): 2024-02-28 to 2024-03-03
+[17:13:11] [openfda_raw.drug_events] >> 20240228: loaded 4662 reports
+[17:13:45] [openfda_raw.drug_events] >> 20240229: loaded 4565 reports
+[17:14:25] [openfda_raw.drug_events] >> 20240301: loaded 5196 reports
+[17:14:32] [openfda_raw.drug_events] >> 20240302: loaded 649 reports
+[17:14:35] Still running: openfda_raw.drug_events (2m0s)
+[17:14:38] [openfda_raw.drug_events] >> 20240303: loaded 561 reports
+[17:14:38] [openfda_raw.drug_events] >> Loaded 15633 reports across 5 day(s)
+[17:14:38] [openfda_raw.drug_events] Successfully collected the data from the asset, uploading to the destination...
+[17:14:41] [openfda_raw.drug_events] Successfully loaded the data from the asset into the destination.
+[17:14:41] Finished: openfda_raw.drug_events (2m6.202s)
+[17:14:41] Running:  openfda_raw.drug_events:custom-check:one_row_per_report_version_per_day
+[17:14:41] Running:  openfda_raw.drug_events:safetyreportversion:positive
+[17:14:41] Running:  openfda_raw.drug_events:receivedate:not_null
+[17:14:41] Running:  openfda_raw.drug_events:reactions:not_null
+[17:14:41] Running:  openfda_raw.drug_events:safetyreportversion:not_null
+[17:14:41] Running:  openfda_raw.drug_events:drugs:not_null
+[17:14:41] Running:  openfda_raw.drug_events:custom-check:report_version_is_orderable_as_a_number
+[17:14:41] Running:  openfda_raw.drug_events:safetyreportid:not_null
+[17:14:41] Finished: openfda_raw.drug_events:safetyreportversion:positive (11ms)
+[17:14:41] Finished: openfda_raw.drug_events:receivedate:not_null (18ms)
+[17:14:41] Finished: openfda_raw.drug_events:reactions:not_null (24ms)
+[17:14:41] Finished: openfda_raw.drug_events:safetyreportid:not_null (29ms)
+[17:14:41] Finished: openfda_raw.drug_events:safetyreportversion:not_null (36ms)
+[17:14:41] Finished: openfda_raw.drug_events:custom-check:one_row_per_report_version_per_day (50ms)
+[17:14:41] Finished: openfda_raw.drug_events:drugs:not_null (59ms)
+[17:14:41] Finished: openfda_raw.drug_events:custom-check:report_version_is_orderable_as_a_number (71ms)
+[17:14:41] Running:  openfda.stg_reports
+[17:14:41] Finished: openfda.stg_reports (16ms)
+[17:14:41] Running:  openfda.stg_reports:report_id:not_null
+[17:14:41] Running:  openfda.stg_reports:is_death:not_null
+[17:14:41] Running:  openfda.stg_reports:custom-check:normalised_ages_are_plausible
+[17:14:41] Running:  openfda.stg_reports:report_id:unique
+[17:14:41] Running:  openfda.stg_reports:patient_sex:not_null
+[17:14:41] Running:  openfda.stg_reports:patient_sex:accepted_values
+[17:14:41] Running:  openfda.stg_reports:custom-check:no_superseded_versions_survive
+[17:14:41] Running:  openfda.stg_reports:report_version:positive
+[17:14:41] Running:  openfda.stg_reports:report_version:not_null
+[17:14:41] Running:  openfda.stg_reports:received_date:not_null
+[17:14:41] Running:  openfda.stg_reports:is_hospitalization:not_null
+[17:14:41] Finished: openfda.stg_reports:report_id:not_null (7ms)
+[17:14:41] Finished: openfda.stg_reports:patient_sex:not_null (13ms)
+[17:14:41] Finished: openfda.stg_reports:report_version:positive (19ms)
+[17:14:41] Finished: openfda.stg_reports:custom-check:no_superseded_versions_survive (31ms)
+[17:14:41] Finished: openfda.stg_reports:report_id:unique (41ms)
+[17:14:41] Finished: openfda.stg_reports:patient_sex:accepted_values (52ms)
+[17:14:41] Finished: openfda.stg_reports:custom-check:normalised_ages_are_plausible (63ms)
+[17:14:41] Finished: openfda.stg_reports:is_death:not_null (74ms)
+[17:14:41] Finished: openfda.stg_reports:is_hospitalization:not_null (84ms)
+[17:14:41] Finished: openfda.stg_reports:received_date:not_null (90ms)
+[17:14:41] Finished: openfda.stg_reports:report_version:not_null (105ms)
+[17:14:41] Running:  openfda.stg_reactions
+[17:14:41] Running:  openfda.mart_daily_report_volume
+[17:14:41] Running:  openfda.stg_drugs
+[17:14:41] Finished: openfda.stg_reactions (8ms)
+[17:14:41] Running:  openfda.stg_reactions:custom-check:reaction_index_is_contiguous_from_1
+[17:14:41] Running:  openfda.stg_reactions:reaction_term:not_null
+[17:14:41] Running:  openfda.stg_reactions:report_id:not_null
+[17:14:41] Running:  openfda.stg_reactions:received_date:not_null
+[17:14:41] Running:  openfda.stg_reactions:reaction_index:not_null
+[17:14:41] Running:  openfda.stg_reactions:reaction_outcome:accepted_values
+[17:14:41] Running:  openfda.stg_reactions:custom-check:every_case_has_at_least_one_reaction
+[17:14:41] Running:  openfda.stg_reactions:reaction_index:positive
+[17:14:41] Finished: openfda.stg_reactions:reaction_term:not_null (22ms)
+[17:14:41] Finished: openfda.stg_reactions:report_id:not_null (29ms)
+[17:14:41] Finished: openfda.stg_reactions:received_date:not_null (36ms)
+[17:14:41] Finished: openfda.stg_reactions:custom-check:every_case_has_at_least_one_reaction (55ms)
+[17:14:41] Finished: openfda.stg_reactions:reaction_index:not_null (70ms)
+[17:14:41] Finished: openfda.stg_reactions:custom-check:reaction_index_is_contiguous_from_1 (87ms)
+[17:14:41] Finished: openfda.stg_reactions:reaction_outcome:accepted_values (104ms)
+[17:14:41] Finished: openfda.stg_reactions:reaction_index:positive (126ms)
+[17:14:41] Finished: openfda.stg_drugs (143ms)
+[17:14:41] Running:  openfda.stg_drugs:custom-check:suspect_drug_is_flagged_on_almost_every_case
+[17:14:41] Running:  openfda.stg_drugs:drug_name:not_null
+[17:14:41] Running:  openfda.stg_drugs:custom-check:every_case_has_at_least_one_drug
+[17:14:41] Running:  openfda.stg_drugs:report_id:not_null
+[17:14:41] Running:  openfda.stg_drugs:drug_index:positive
+[17:14:41] Running:  openfda.stg_drugs:received_date:not_null
+[17:14:41] Running:  openfda.stg_drugs:drug_index:not_null
+[17:14:41] Running:  openfda.stg_drugs:drug_role:accepted_values
+[17:14:42] Finished: openfda.stg_drugs:drug_name:not_null (683ms)
+[17:14:42] Finished: openfda.stg_drugs:custom-check:every_case_has_at_least_one_drug (1.021s)
+[17:14:42] Finished: openfda.stg_drugs:received_date:not_null (1.035s)
+[17:14:43] Finished: openfda.stg_drugs:drug_role:accepted_values (2.232s)
+[17:14:44] Finished: openfda.stg_drugs:drug_index:positive (2.981s)
+[17:14:46] Finished: openfda.stg_drugs:custom-check:suspect_drug_is_flagged_on_almost_every_case (4.467s)
+[17:14:46] Finished: openfda.stg_drugs:report_id:not_null (4.489s)
+[17:14:47] Finished: openfda.stg_drugs:drug_index:not_null (6.02s)
+[17:14:47] Running:  openfda.mart_drug_reaction_signals
+[17:14:49] Finished: openfda.mart_drug_reaction_signals (1.368s)
+[17:14:49] Running:  openfda.mart_drug_reaction_signals:drug_name:not_null
+[17:14:49] Running:  openfda.mart_drug_reaction_signals:total_reports:positive
+[17:14:49] Running:  openfda.mart_drug_reaction_signals:custom-check:the_polypharmacy_exclusion_stays_a_trim,_not_a_cull
+[17:14:49] Running:  openfda.mart_drug_reaction_signals:reaction_term:not_null
+[17:14:49] Running:  openfda.mart_drug_reaction_signals:pair_reports:not_null
+[17:14:49] Running:  openfda.mart_drug_reaction_signals:pair_reports:positive
+[17:14:49] Running:  openfda.mart_drug_reaction_signals:prr:non_negative
+[17:14:49] Running:  openfda.mart_drug_reaction_signals:custom-check:pair_count_never_exceeds_its_margins
+[17:14:49] Running:  openfda.mart_drug_reaction_signals:custom-check:drug_totals_never_exceed_the_population
+[17:14:49] Running:  openfda.mart_drug_reaction_signals:drug_reports:positive
+[17:14:49] Running:  openfda.mart_drug_reaction_signals:reaction_reports:positive
+[17:14:49] Finished: openfda.mart_drug_reaction_signals:drug_name:not_null (6ms)
+[17:14:49] Finished: openfda.mart_drug_reaction_signals:pair_reports:not_null (13ms)
+[17:14:49] Finished: openfda.mart_drug_reaction_signals:custom-check:the_polypharmacy_exclusion_stays_a_trim,_not_a_cull (395ms)
+[17:14:49] Finished: openfda.mart_drug_reaction_signals:pair_reports:positive (416ms)
+[17:14:49] Finished: openfda.mart_drug_reaction_signals:reaction_term:not_null (426ms)
+[17:14:49] Finished: openfda.mart_drug_reaction_signals:total_reports:positive (434ms)
+[17:14:49] Finished: openfda.mart_drug_reaction_signals:custom-check:pair_count_never_exceeds_its_margins (451ms)
+[17:14:49] Finished: openfda.mart_drug_reaction_signals:prr:non_negative (474ms)
+[17:14:49] Finished: openfda.mart_drug_reaction_signals:reaction_reports:positive (482ms)
+[17:14:49] Finished: openfda.mart_drug_reaction_signals:drug_reports:positive (501ms)
+[17:14:49] Finished: openfda.mart_drug_reaction_signals:custom-check:drug_totals_never_exceed_the_population (531ms)
+[17:14:49] Finished: openfda.mart_daily_report_volume (8.166s)
+[17:14:49] Running:  openfda.mart_daily_report_volume:received_date:not_null
+[17:14:49] Running:  openfda.mart_daily_report_volume:received_date:unique
+[17:14:49] Running:  openfda.mart_daily_report_volume:death_reports:non_negative
+[17:14:49] Running:  openfda.mart_daily_report_volume:serious_reports:non_negative
+[17:14:49] Running:  openfda.mart_daily_report_volume:reports:positive
+[17:14:49] Running:  openfda.mart_daily_report_volume:custom-check:no_gaps_in_the_loaded_date_range
+[17:14:49] Running:  openfda.mart_daily_report_volume:reports:not_null
+[17:14:49] Running:  openfda.mart_daily_report_volume:serious_rate:max
+[17:14:49] Running:  openfda.mart_daily_report_volume:serious_rate:non_negative
+[17:14:49] Running:  openfda.mart_daily_report_volume:reports_with_age:non_negative
+[17:14:49] Finished: openfda.mart_daily_report_volume:received_date:not_null (6ms)
+[17:14:49] Finished: openfda.mart_daily_report_volume:reports_with_age:non_negative (13ms)
+[17:14:49] Finished: openfda.mart_daily_report_volume:serious_rate:non_negative (19ms)
+[17:14:49] Finished: openfda.mart_daily_report_volume:received_date:unique (28ms)
+[17:14:49] Finished: openfda.mart_daily_report_volume:death_reports:non_negative (35ms)
+[17:14:49] Finished: openfda.mart_daily_report_volume:serious_reports:non_negative (42ms)
+[17:14:49] Finished: openfda.mart_daily_report_volume:reports:positive (50ms)
+[17:14:49] Finished: openfda.mart_daily_report_volume:reports:not_null (60ms)
+[17:14:49] Finished: openfda.mart_daily_report_volume:serious_rate:max (72ms)
+[17:14:49] Finished: openfda.mart_daily_report_volume:custom-check:no_gaps_in_the_loaded_date_range (84ms)
+
+==================================================
+
+PASS openfda_raw.drug_events ........
+PASS openfda.stg_reports ...........
+PASS openfda.stg_reactions ........
+PASS openfda.stg_drugs ........
+PASS openfda.mart_drug_reaction_signals ...........
+PASS openfda.mart_daily_report_volume ..........
+
+
+bruin run completed successfully in 2m14.646s
+
+ ✓ Assets executed      6 succeeded
+ ✓ Quality checks       56 succeeded

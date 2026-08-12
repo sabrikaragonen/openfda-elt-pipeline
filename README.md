@@ -2,6 +2,16 @@
 
 An educational ELT pipeline for adverse drug event reports from the openFDA REST API.
 
+> **This is a fork.** The original is
+> [peterscheinsohn/openfda-elt-pipeline](https://github.com/peterscheinsohn/openfda-elt-pipeline)
+> and everything below this note is his. The fork adds
+> [`openfda_bruin/`](./openfda_bruin), the same pipeline rebuilt on
+> [Bruin](https://github.com/bruin-data/bruin) instead of dlt + dbt, taking it
+> through the "possible future improvements" listed at the bottom of this file:
+> incremental loading, analytical marts and handling of updated reports.
+> See [`openfda_bruin/README.md`](./openfda_bruin/README.md) for what changed
+> and what the data turned out to need. The dlt and dbt code is unmodified.
+
 ## Architecture
 
 openFDA REST API

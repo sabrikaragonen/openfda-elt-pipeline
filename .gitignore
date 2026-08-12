@@ -5,3 +5,12 @@ logs/
 openfda_dbt/target/
 openfda_dbt/dbt_packages/
 .DS_Store
+logs/queries
+# bruin
+warehouse.db
+warehouse.db.wal
+
+.bruin.yml
+logs/runs
+logs/*.log
+*.py[cod]

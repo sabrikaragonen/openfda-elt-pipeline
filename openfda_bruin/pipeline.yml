@@ -1,0 +1,37 @@
+name: openfda
+schedule: daily
+start_date: "2024-03-01"
+catchup: true
+
+default_connections:
+    duckdb: "duckdb-default"
+
+default:
+    type: duckdb.sql
+
+variables:
+    # openFDA allows anonymous requests but caps `limit` below 1000 and
+    # throttles per IP. Set an API key (see README) to raise both.
+    page_size:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 500
+
+    # Drug/reaction pairs below this many reports are dropped from the signal
+    # mart. PRR on a handful of cases is noise; raise this as the loaded
+    # window grows. Override per run with --var min_pair_reports=10
+    min_pair_reports:
+        type: integer
+        minimum: 1
+        default: 3
+
+    # Cases naming more than this many suspect drugs are excluded from the
+    # signal mart. Every drug on a case pairs with every reaction on it, so a
+    # handful of polypharmacy submissions otherwise dominate the pair space.
+    # Measured on the sample in this repo: 55 of 15,566 cases (0.35%) name
+    # more than 20 suspect drugs, and they produce 56% of all pairs.
+    max_suspect_drugs_per_case:
+        type: integer
+        minimum: 1
+        default: 20
