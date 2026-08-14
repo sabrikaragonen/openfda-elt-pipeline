@@ -1,8 +1,0 @@
-version: 2
-models:
-  - name: stg_reports
-    columns: 
-      - name: safetyreportid
-        tests:
-          - not_null
-          - unique

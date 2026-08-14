@@ -1,9 +1,0 @@
-version: 2
-sources:
-  - name: openfda_raw
-    database: openfda_dlt_rest
-    schema: openfda_rest 
-    tables: 
-      - name: reports
-      - name: reports__patient__reaction
-      - name: reports__patient__drug
