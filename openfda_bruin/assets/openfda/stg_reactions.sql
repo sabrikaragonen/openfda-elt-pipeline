@@ -34,6 +34,12 @@ columns:
     description: MedDRA preferred term for the reaction.
     checks:
       - name: not_null
+  - name: is_serious
+    type: boolean
+    description: Seriousness of the parent case, carried down so metrics can filter locally.
+  - name: patient_age_years
+    type: double
+    description: Normalised patient age of the parent case, carried down for the same reason.
   - name: reaction_outcome
     type: varchar
     description: Decoded outcome. NULL when openFDA did not report one.
@@ -74,6 +80,8 @@ WITH exploded AS (
     SELECT
         report_id,
         received_date,
+        is_serious,
+        patient_age_years,
         unnest(
             list_transform(
                 json_extract(reactions, '$[*]'),
@@ -86,6 +94,8 @@ WITH exploded AS (
 SELECT
     report_id,
     received_date,
+    is_serious,
+    patient_age_years,
     reaction.position AS reaction_index,
     json_extract_string(reaction.element, '$.reactionmeddrapt') AS reaction_term,
 

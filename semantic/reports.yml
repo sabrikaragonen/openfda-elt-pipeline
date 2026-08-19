@@ -1,0 +1,69 @@
+schema: v1
+name: reports
+label: Adverse event reports
+description: |
+  Case-level model. One row per adverse event case, latest version only.
+
+  `patient_age_years` is the normalised age from openfda.stg_reports, not the
+  raw openFDA `patientonsetage`. Averaging the raw column mixes hours, days,
+  months, decades and years in one number and returns 255 instead of 56.5, so a
+  metric built on it would be confidently wrong. That matters more here than in
+  a SQL model: a semantic layer is what an agent trusts.
+
+source:
+  table: openfda.stg_reports
+
+primary_key: report_id
+
+dimensions:
+  - name: received_date
+    type: time
+    granularities:
+      day: date_trunc('day', received_date)
+      month: date_trunc('month', received_date)
+  - name: patient_sex
+    type: string
+  - name: occur_country
+    type: string
+  - name: reporter_country
+    type: string
+  - name: is_serious
+    type: boolean
+  - name: is_death
+    type: boolean
+
+metrics:
+  - name: report_count
+    label: Reports
+    expression: count(distinct report_id)
+
+  - name: serious_report_count
+    label: Serious reports
+    expression: count(distinct report_id)
+    filter: "is_serious"
+
+  - name: death_report_count
+    label: Reports with a fatal outcome
+    expression: count(distinct report_id)
+    filter: "is_death"
+
+  - name: serious_rate
+    label: Share of reports classed serious
+    expression: "{serious_report_count} / {report_count}"
+    format:
+      type: percentage
+      decimals: 1
+
+  - name: avg_patient_age_years
+    label: Average patient age (years)
+    description: Over the cases that reported a usable age and unit.
+    expression: avg(patient_age_years)
+    format:
+      type: number
+      decimals: 1
+
+segments:
+  - name: serious
+    filter: "is_serious"
+  - name: fatal
+    filter: "is_death"

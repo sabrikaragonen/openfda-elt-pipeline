@@ -24,9 +24,13 @@ The original's README ends with a list of what it would do next:
 > Airflow; historical tracking of updated reports.
 
 The port works through that list, so you get to see what each of those looks
-like in Bruin, on the real source rather than on a five-row sample. All
-comparison links below are pinned to upstream commit
-[`f9e1b68`](https://github.com/peterscheinsohn/openfda-elt-pipeline/tree/f9e1b689f7e162a13ba9574abd48376deed6f719)
+like in Bruin, on the real source rather than on a five-row sample.
+
+Upstream has since added a semantic layer over the dbt models using
+[SLayer](https://github.com/motleycrew-ai/slayer), exposed to an AI agent over
+MCP. That is ported too, in [`semantic/`](./semantic). All comparison links
+below are pinned to upstream commit
+[`a64d6e5`](https://github.com/peterscheinsohn/openfda-elt-pipeline/tree/a64d6e565f06e1d5ec485b8a24723e954b5ca27d)
 so the numbers stay checkable.
 
 Every figure comes from [`openfda_bruin/run.log`](./openfda_bruin/run.log), one
@@ -39,9 +43,11 @@ clean run against the live API.
 - **DuckDB**, same destination as the original.
 - **openFDA REST API**, same source as the original.
 
-That is the entire list. **No dlt and no dbt**, and no Airflow either: the
-scheduling the original lists as a future step is `schedule` / `start_date` /
-`catchup` in [`pipeline.yml`](./openfda_bruin/pipeline.yml).
+That is the entire list. **No dlt, no dbt, no SLayer and no Airflow.** The
+scheduling upstream lists as a future step is `schedule` / `start_date` /
+`catchup` in [`pipeline.yml`](./openfda_bruin/pipeline.yml), and the semantic
+layer is native, so there is no separate tool to install or datasource to
+register.
 
 ```
 openFDA REST API
@@ -49,6 +55,7 @@ openFDA REST API
 → DuckDB
 → Bruin SQL assets        3 staging views, 2 marts
 → Bruin quality checks    56, declared on the assets they check
+→ Bruin semantic models   3 models, 13 metrics, queried by name
 ```
 
 Python still appears, but as an implementation detail of one asset rather than a
@@ -163,6 +170,96 @@ run on stale data.
 | [`openfda.mart_daily_report_volume`](./openfda_bruin/assets/openfda/mart_daily_report_volume.sql) | DuckDB SQL | table, `create+replace` | 5 |
 | [`openfda.mart_drug_reaction_signals`](./openfda_bruin/assets/openfda/mart_drug_reaction_signals.sql) | DuckDB SQL | table, `create+replace` | 3,483 |
 
+## Semantic layer
+
+Upstream describes the staging models as SLayer semantic models so an agent can
+answer questions without writing SQL. Bruin has the same idea built in: YAML in
+a `semantic/` directory at the repo root, queried by name through `bruin query`.
+
+[`semantic/`](./semantic) defines three models, `reports`, `reactions` and
+`drugs`, carrying 13 metrics between them. The three upstream measures port
+directly:
+
+| SLayer measure upstream | here |
+|---|---|
+| `serious_reports_per_reaction` | `reactions.serious_reports_per_reaction` |
+| `avg_patient_age_per_reaction` | `reactions.avg_patient_age_per_reaction` |
+| `serious_reports_per_medicinalproduct` | `drugs.serious_reports_per_drug` |
+
+```bash
+$ bruin query --asset openfda_bruin/assets/openfda/stg_reactions.sql \
+    --semantic-model reactions \
+    --dimension reaction_term \
+    --metric serious_reports_per_reaction \
+    --sort serious_reports_per_reaction:desc --limit 5
+
+┌──────────────────┬──────────────────────────────┐
+│ REACTION_TERM    │ SERIOUS_REPORTS_PER_REACTION │
+├──────────────────┼──────────────────────────────┤
+│ Death            │ 651                          │
+│ Off label use    │ 563                          │
+│ Drug ineffective │ 372                          │
+│ Fatigue          │ 320                          │
+│ Dyspnoea         │ 278                          │
+└──────────────────┴──────────────────────────────┘
+```
+
+Derived metrics, formats, segments and time granularities come along too.
+`serious_rate` is defined as `{serious_report_count} / {report_count}` rather
+than repeating the arithmetic:
+
+```bash
+$ bruin query --asset openfda_bruin/assets/openfda/stg_reports.sql \
+    --semantic-model reports --dimension received_date:day \
+    --metric report_count --metric serious_report_count --metric serious_rate
+```
+
+Its output for 1 March matches `mart_daily_report_volume` exactly (0.48), which
+is the useful property: the mart and the semantic layer are two views of one
+definition rather than two chances to disagree.
+
+### A semantic layer inherits the bugs underneath it
+
+This is the part worth dwelling on. Upstream's `avg_patient_age_per_reaction`
+averages `patient_onset_age`, which is the raw openFDA column, and that column
+is expressed in whichever unit `patientonsetageunit` names. Run the same metric
+both ways:
+
+| Reaction | On the raw column | Normalised to years |
+|---|---|---|
+| Death | **2049.4** | 70.3 |
+| Dyspnoea | **585.2** | 57.4 |
+| Nausea | **133.1** | 54.4 |
+| Fatigue | **59.4** | 59.7 |
+
+The raw numbers are not uniformly wrong, they are erratically wrong. Fatigue
+looks perfectly reasonable at 59.4 because most of those rows happen to be in
+years, so you cannot spot the problem by sanity-checking one value. And the
+ranking changes: raw puts Fatigue last of these four, normalised puts it second.
+
+Upstream's newer commit casts the column with `TRY_CAST(... AS INTEGER)`, which
+makes it a cleaner number without making it a comparable one.
+
+So the metrics here read `patient_age_years` from
+[`stg_reports`](./openfda_bruin/assets/openfda/stg_reports.sql), where the unit
+conversion happens once. A wrong metric in a semantic layer is worse than a
+wrong column in a model, because the whole point of the layer is that people and
+agents stop checking.
+
+The same reasoning drives `drugs.drug_role`. A case names the suspect drug
+alongside every other medication the patient was taking, so
+`serious_reports_per_drug` filters to `drug_role = 'suspect'` itself rather than
+trusting the caller to remember.
+
+### On MCP
+
+Upstream's commit also wires SLayer to an MCP client so an agent can ask for
+those metrics in English. Bruin ships a `bruin mcp` server, but its documented
+job is giving an IDE context about your project, not serving semantic metrics as
+agent-callable tools, so **that half of the upstream commit is not reproduced
+here** and this repo does not claim parity on it. The metrics are queryable from
+the CLI; pointing an agent at them is a separate exercise.
+
 ## Size and setup, honestly
 
 The port is **nine times more code**. It is not a "look how much less you have
@@ -170,11 +267,13 @@ to write" story, and pretending otherwise would be silly:
 
 | | [dlt + dbt original](https://github.com/peterscheinsohn/openfda-elt-pipeline/tree/f9e1b689f7e162a13ba9574abd48376deed6f719) | Bruin port |
 |---|---|---|
-| Source files | 8 | 9 |
-| Total lines | 111 | 996 |
-| Lines of SQL logic | 19 | 183 |
+| Source files | 11 | 12 |
+| Total lines | 180 | 1,213 |
+| Lines of SQL logic | 20 | 183 |
+| Lines of semantic layer | 68, in SLayer YAML | 197, in `semantic/` |
 | Lines of config / scaffolding | 34 in repo, plus `~/.dbt/profiles.yml` outside it | 55, all in repo |
 | Quality checks | 8, in 2 sidecar `.yml` files | 56, inline in the asset that owns them |
+| Metrics | 3 | 13 |
 | Data rows it can hold | 5, replaced every run | any date range, 15,633 over the 5 days loaded |
 
 Those extra lines are buying pagination, retries, rate limiting, code decoding,
@@ -187,9 +286,10 @@ Where the port is genuinely smaller is in the setup:
 
 | | dlt + dbt original | Bruin port |
 |---|---|---|
-| Installed on your machine | Python, then `pip install dlt duckdb dbt-duckdb requests` | one binary |
+| Installed on your machine | Python, then `pip install dlt duckdb dbt-duckdb requests`, then `uv tool install 'motley-slayer[all]'` | one binary |
 | Files to hand-edit before first run | `~/.dbt/profiles.yml`, with an absolute path | none |
 | Commands to a full build | 4 (`pip install`, edit profiles, `python3 pipeline_dlt_rest.py`, `dbt build`) | 1 (`bruin run`) |
+| Commands to register the semantic layer | 4 (`slayer datasources create`, then `slayer models create` per model) | 0, the YAML is read in place |
 | Steps that must be run in the right order by hand | 2 | 0 |
 | Config files living outside the repo | 1 | 0 |
 
@@ -206,6 +306,7 @@ types, lineage, scheduling and backfill are one DAG that one binary runs.
 | Nested arrays | dlt child tables joined on `_dlt_id` / `_dlt_parent_id` | JSON kept in the raw layer, unnested in SQL, no vendor columns in the models |
 | Tests | 8 `not_null` / `unique` in `.yml` sidecars | 56 checks inline, including 8 custom SQL checks |
 | Scheduling | listed as a future step | `schedule`, `start_date`, `catchup` and `interval_modifiers` in `pipeline.yml` |
+| Semantic layer | SLayer, installed separately, models registered into machine-local storage | `semantic/*.yml`, read from the repo by the same binary |
 | Python environment | yours, whatever version it happens to be | declared per asset, fetched by Bruin |
 
 ## Three things the data turned out to need

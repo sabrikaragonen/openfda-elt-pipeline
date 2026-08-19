@@ -1,0 +1,64 @@
+schema: v1
+name: reactions
+label: Reported reactions
+description: |
+  Reaction-level model, one row per reaction on a case.
+
+  `is_serious` and `patient_age_years` are carried down from the parent case by
+  openfda.stg_reactions rather than reached through the join below. Bruin's
+  `joins` resolve joined *dimensions* (`reports.occur_country` works), but a
+  metric-level `filter` is raw SQL that does not get the join alias, so a metric
+  filtering on a parent attribute only compiles when a joined dimension happens
+  to be selected too. Local columns make the metrics work whatever you group by.
+
+source:
+  table: openfda.stg_reactions
+
+dimensions:
+  - name: reaction_term
+    type: string
+  - name: reaction_outcome
+    type: string
+  - name: received_date
+    type: time
+    granularities:
+      day: date_trunc('day', received_date)
+      month: date_trunc('month', received_date)
+  - name: is_serious
+    type: boolean
+
+joins:
+  - name: reports
+    relationship: many_to_one
+    foreign_key: report_id
+
+metrics:
+  - name: reaction_report_count
+    label: Reports mentioning this reaction
+    expression: count(distinct report_id)
+
+  - name: serious_reports_per_reaction
+    label: Serious reports mentioning this reaction
+    expression: count(distinct report_id)
+    filter: "is_serious"
+
+  - name: fatal_reports_per_reaction
+    label: Reports where this reaction ended fatally
+    expression: count(distinct report_id)
+    filter: "reaction_outcome = 'fatal'"
+
+  - name: avg_patient_age_per_reaction
+    label: Average patient age for this reaction (years)
+    description: |
+      Normalised to years. The equivalent SLayer measure upstream averages the
+      raw openFDA age column, which is not a number of years.
+    expression: avg(patient_age_years)
+    format:
+      type: number
+      decimals: 1
+
+segments:
+  - name: serious
+    filter: "is_serious"
+  - name: fatal_outcome
+    filter: "reaction_outcome = 'fatal'"

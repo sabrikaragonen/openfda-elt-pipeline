@@ -1,0 +1,64 @@
+schema: v1
+name: drugs
+label: Reported drugs
+description: |
+  Drug-level model, one row per drug named on a case.
+
+  `drug_role` is the dimension that decides whether a number means anything. A
+  case lists the drug suspected of causing the reaction alongside every other
+  medication the patient happened to be taking, so counting all of them
+  attributes reactions to unrelated drugs. The `suspect_only` segment is the one
+  to reach for, and the suspect-scoped metrics apply it themselves.
+
+source:
+  table: openfda.stg_drugs
+
+dimensions:
+  - name: drug_name
+    type: string
+  - name: active_substance
+    type: string
+  - name: drug_role
+    type: string
+  - name: drug_indication
+    type: string
+  - name: received_date
+    type: time
+    granularities:
+      day: date_trunc('day', received_date)
+      month: date_trunc('month', received_date)
+  - name: is_serious
+    type: boolean
+
+joins:
+  - name: reports
+    relationship: many_to_one
+    foreign_key: report_id
+
+metrics:
+  - name: drug_report_count
+    label: Reports naming this drug in any role
+    expression: count(distinct report_id)
+
+  - name: suspect_report_count
+    label: Reports naming this drug as suspect
+    expression: count(distinct report_id)
+    filter: "drug_role = 'suspect'"
+
+  - name: serious_reports_per_drug
+    label: Serious reports naming this drug as suspect
+    expression: count(distinct report_id)
+    filter: "drug_role = 'suspect' AND is_serious"
+
+  - name: avg_patient_age_per_drug
+    label: Average patient age for this drug (years)
+    expression: avg(patient_age_years)
+    format:
+      type: number
+      decimals: 1
+
+segments:
+  - name: suspect_only
+    filter: "drug_role = 'suspect'"
+  - name: serious
+    filter: "is_serious"

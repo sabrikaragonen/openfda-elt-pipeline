@@ -41,6 +41,12 @@ columns:
   - name: active_substance
     type: varchar
     description: Active substance name where reported.
+  - name: is_serious
+    type: boolean
+    description: Seriousness of the parent case, carried down so metrics can filter locally.
+  - name: patient_age_years
+    type: double
+    description: Normalised patient age of the parent case, carried down for the same reason.
   - name: drug_role
     type: varchar
     description: Whether the drug is suspected of causing the reaction.
@@ -83,6 +89,8 @@ WITH exploded AS (
     SELECT
         report_id,
         received_date,
+        is_serious,
+        patient_age_years,
         unnest(
             list_transform(
                 json_extract(drugs, '$[*]'),
@@ -95,6 +103,8 @@ WITH exploded AS (
 SELECT
     report_id,
     received_date,
+    is_serious,
+    patient_age_years,
     drug.position AS drug_index,
     json_extract_string(drug.element, '$.medicinalproduct') AS drug_name,
     json_extract_string(drug.element, '$.activesubstance.activesubstancename') AS active_substance,
