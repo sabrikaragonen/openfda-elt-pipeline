@@ -1,6 +1,5 @@
 /* @bruin
 
-name: openfda.stg_drugs
 type: duckdb.sql
 description: |
   One row per drug named on a case, unnested from the JSON array on

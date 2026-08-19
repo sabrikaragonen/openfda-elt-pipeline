@@ -1,6 +1,5 @@
 /* @bruin
 
-name: openfda.mart_daily_report_volume
 type: duckdb.sql
 description: |
   Daily shape of the incoming report stream: how many cases arrived, how many

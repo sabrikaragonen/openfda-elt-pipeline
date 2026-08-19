@@ -1,6 +1,5 @@
 /* @bruin
 
-name: openfda.stg_reports
 type: duckdb.sql
 description: |
   One row per adverse event case, decoded into readable values.

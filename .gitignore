@@ -12,3 +12,5 @@ logs/runs
 logs/*.log
 *.py[cod]
 .venv/
+
+.bruin.yml

@@ -1,6 +1,5 @@
 /* @bruin
 
-name: openfda.mart_drug_reaction_signals
 type: duckdb.sql
 description: |
   Suspect drug and reaction pairs with a Proportional Reporting Ratio, which

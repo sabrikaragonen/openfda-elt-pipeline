@@ -1,6 +1,5 @@
 /* @bruin
 
-name: openfda.stg_reactions
 type: duckdb.sql
 description: |
   One row per reported reaction, unnested from the JSON array on

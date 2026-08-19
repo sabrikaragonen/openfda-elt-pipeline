@@ -79,52 +79,55 @@ Then poke at it:
 
 ```bash
 bruin query -c duckdb-default -q "SELECT * FROM openfda.mart_daily_report_volume ORDER BY 1"
-bruin lineage openfda_bruin/assets/openfda/mart_drug_reaction_signals.sql --full
+bruin run openfda_bruin/assets/openfda/stg_reports.sql --downstream
 bruin validate openfda_bruin
 ```
 
-## Lineage
+## Naming and lineage
 
-Bruin builds the DAG from the assets themselves, so lineage is a command rather
-than a diagram somebody has to remember to update:
-
-```
-$ bruin lineage openfda_bruin/assets/openfda_raw/openfda_drug_events.py --full
-
-Lineage: 'openfda_raw.drug_events'
-
-Upstream Dependencies
-========================
-Asset has no upstream dependencies.
-
-Downstream Dependencies
-========================
-- openfda.stg_reports (assets/openfda/stg_reports.sql)
-- openfda.mart_daily_report_volume (assets/openfda/mart_daily_report_volume.sql)
-- openfda.mart_drug_reaction_signals (assets/openfda/mart_drug_reaction_signals.sql)
-- openfda.stg_drugs (assets/openfda/stg_drugs.sql)
-- openfda.stg_reactions (assets/openfda/stg_reactions.sql)
-
-Total: 5
-```
+No asset declares its own name. Bruin derives it from the file path, so
+`assets/openfda/stg_reports.sql` is the asset `openfda.stg_reports` and lands in
+schema `openfda`, table `stg_reports`. The layout *is* the naming:
 
 ```
-$ bruin lineage openfda_bruin/assets/openfda/mart_drug_reaction_signals.sql --full
+openfda_bruin/
+├── pipeline.yml
+├── pyproject.toml
+└── assets/
+    ├── openfda_raw/
+    │   └── drug_events.py                 →  openfda_raw.drug_events
+    └── openfda/
+        ├── stg_reports.sql                →  openfda.stg_reports
+        ├── stg_reactions.sql              →  openfda.stg_reactions
+        ├── stg_drugs.sql                  →  openfda.stg_drugs
+        ├── mart_daily_report_volume.sql   →  openfda.mart_daily_report_volume
+        └── mart_drug_reaction_signals.sql →  openfda.mart_drug_reaction_signals
+```
 
-Lineage: 'openfda.mart_drug_reaction_signals'
+One less thing to keep in sync, and you can read the warehouse layout off `ls`.
 
-Upstream Dependencies
-========================
-- openfda.stg_reports (assets/openfda/stg_reports.sql)
-- openfda_raw.drug_events (assets/openfda_raw/openfda_drug_events.py)
-- openfda.stg_reactions (assets/openfda/stg_reactions.sql)
-- openfda.stg_drugs (assets/openfda/stg_drugs.sql)
+Bruin then builds the DAG from the assets themselves, so asking for one asset
+pulls in everything that depends on it, in order:
 
-Total: 4
+```
+$ bruin run openfda_bruin/assets/openfda_raw/drug_events.py --downstream
 
-Downstream Dependencies
-========================
-Asset has no downstream dependencies.
+Running:  openfda_raw.drug_events
+Running:  openfda.stg_reports
+Running:  openfda.stg_reactions
+Running:  openfda.mart_daily_report_volume
+Running:  openfda.stg_drugs
+Running:  openfda.mart_drug_reaction_signals
+
+PASS openfda_raw.drug_events ........
+PASS openfda.stg_reports ...........
+PASS openfda.stg_reactions ........
+PASS openfda.mart_daily_report_volume ..........
+PASS openfda.stg_drugs ........
+PASS openfda.mart_drug_reaction_signals ...........
+
+ ✓ Assets executed      6 succeeded
+ ✓ Quality checks       56 succeeded
 ```
 
 The whole graph, ingestion included:
@@ -153,7 +156,7 @@ run on stale data.
 
 | Asset | Type | Materialisation | Rows |
 |---|---|---|---|
-| [`openfda_raw.drug_events`](./openfda_bruin/assets/openfda_raw/openfda_drug_events.py) | Python | table, `delete+insert` on `receivedate` | 15,633 |
+| [`openfda_raw.drug_events`](./openfda_bruin/assets/openfda_raw/drug_events.py) | Python | table, `delete+insert` on `receivedate` | 15,633 |
 | [`openfda.stg_reports`](./openfda_bruin/assets/openfda/stg_reports.sql) | DuckDB SQL | view | 15,633 |
 | [`openfda.stg_reactions`](./openfda_bruin/assets/openfda/stg_reactions.sql) | DuckDB SQL | view | 45,821 |
 | [`openfda.stg_drugs`](./openfda_bruin/assets/openfda/stg_drugs.sql) | DuckDB SQL | view | 61,369 |
@@ -168,15 +171,15 @@ to write" story, and pretending otherwise would be silly:
 | | [dlt + dbt original](https://github.com/peterscheinsohn/openfda-elt-pipeline/tree/f9e1b689f7e162a13ba9574abd48376deed6f719) | Bruin port |
 |---|---|---|
 | Source files | 8 | 9 |
-| Total lines | 111 | 1,002 |
+| Total lines | 111 | 996 |
 | Lines of SQL logic | 19 | 183 |
 | Lines of config / scaffolding | 34 in repo, plus `~/.dbt/profiles.yml` outside it | 55, all in repo |
 | Quality checks | 8, in 2 sidecar `.yml` files | 56, inline in the asset that owns them |
 | Data rows it can hold | 5, replaced every run | any date range, 15,633 over the 5 days loaded |
 
 Those extra lines are buying pagination, retries, rate limiting, code decoding,
-age normalisation, two marts, a PRR calculation and 48 more tests. Of the 645
-lines across the five SQL assets, only **183 are SQL**. The other 462 are the
+age normalisation, two marts, a PRR calculation and 48 more tests. Of the 640
+lines across the five SQL assets, only **183 are SQL**. The other 457 are the
 `@bruin` header: descriptions, column types and checks, sitting in the same file
 as the query they describe.
 

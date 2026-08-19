@@ -1,5 +1,4 @@
 """@bruin
-name: openfda_raw.drug_events
 type: python
 image: python:3.13
 connection: duckdb-default
